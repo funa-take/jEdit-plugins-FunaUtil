@@ -1,0 +1,5 @@
+plugin.middleclip.MiddleClipPlugin.name=FunaUtil
+plugin.middleclip.MiddleClipPlugin.author=Funa
+plugin.middleclip.MiddleClipPlugin.activate=defer
+plugin.middleclip.MiddleClipPlugin.version=0.1
+plugin.middleclip.MiddleClipPlugin.docs=index.html
