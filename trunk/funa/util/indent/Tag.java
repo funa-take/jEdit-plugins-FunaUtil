@@ -24,7 +24,7 @@ public class Tag {
     }
     
     int endTagIndex = src.indexOf(">", startTagIndex + 1);
-    if (startTagIndex < 0) {
+    if (endTagIndex < 0) {
       return;
     }
     startPos.setPos(startTagIndex + startIndex);
