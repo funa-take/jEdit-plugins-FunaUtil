@@ -1,5 +1,6 @@
 ○2018/12/13
-  MarkerManagerを追加
+  ・MarkerManagerを追加
+  ・IOUtilを追加
 
 ○2017/09/03
   バグ修正
