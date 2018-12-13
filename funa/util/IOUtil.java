@@ -34,6 +34,9 @@ public class IOUtil {
     }
     
     String parent = MiscUtilities.getParentOfPath(dir);
+    VFSFile vfsFile = vfs._getFile(session, parent, null);
+    if (vfsFile == null) return null;
+    if (!vfsFile.isReadable()) return null;
     if (parent.equals(dir)) return null;
     return searchFile(vfs, session, parent, fileName);
   }
