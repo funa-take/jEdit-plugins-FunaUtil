@@ -1,3 +1,5 @@
+package funa.util;
+
 import java.util.ArrayList;
 import java.util.Vector;
 import org.gjt.sp.jedit.Buffer;
