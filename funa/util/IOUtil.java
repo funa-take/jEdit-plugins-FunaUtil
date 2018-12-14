@@ -20,10 +20,14 @@ public class IOUtil {
     VFS vfs = buffer.getVFS();
     Object session = vfs.createVFSSession(buffer.getPath(), null);
     try {
+      if (session == null) return null;
+      
       String parent = MiscUtilities.getParentOfPath(buffer.getPath());
       return _searchFile(vfs, session, parent, fileName);
     } finally {
-      vfs._endVFSSession(session, null);
+      if (session != null) {
+        vfs._endVFSSession(session, null);
+      }
     }
   }
   
@@ -54,6 +58,8 @@ public class IOUtil {
     VFS vfs = buffer.getVFS();
     Object session = vfs.createVFSSession(buffer.getPath(), null);
     try {
+      if (session == null) return null;
+      
       File outFile = new File(dir, fromFile.getName());
       is = vfs._createInputStream(session, fromFile.getPath(), false, null);
       os = new FileOutputStream(outFile);
@@ -62,7 +68,9 @@ public class IOUtil {
     } finally {
       close(os);
       close(is);
-      vfs._endVFSSession(session, null);
+      if (session != null) {
+        vfs._endVFSSession(session, null);
+      }
     }
   }
   
