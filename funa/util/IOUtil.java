@@ -19,15 +19,13 @@ public class IOUtil {
   public static VFSFile searchFile(Buffer buffer, String fileName) throws Exception {
     VFS vfs = buffer.getVFS();
     Object session = vfs.createVFSSession(buffer.getPath(), null);
+    if (session == null) throw new IOException("Fail createVFSSession");
+    
     try {
-      if (session == null) return null;
-      
       String parent = MiscUtilities.getParentOfPath(buffer.getPath());
       return _searchFile(vfs, session, parent, fileName);
     } finally {
-      if (session != null) {
-        vfs._endVFSSession(session, null);
-      }
+      vfs._endVFSSession(session, null);
     }
   }
   
@@ -49,17 +47,14 @@ public class IOUtil {
   }
   
   public static File copyToDir(Buffer buffer, VFSFile fromFile, File dir) throws Exception {
-    if (fromFile == null) {
-      return null;
-    }
-    
     InputStream is = null;
     OutputStream os = null;
+    
     VFS vfs = buffer.getVFS();
     Object session = vfs.createVFSSession(buffer.getPath(), null);
+    if (session == null) throw new IOException("Fail createVFSSession");
+    
     try {
-      if (session == null) return null;
-      
       File outFile = new File(dir, fromFile.getName());
       is = vfs._createInputStream(session, fromFile.getPath(), false, null);
       os = new FileOutputStream(outFile);
@@ -68,9 +63,7 @@ public class IOUtil {
     } finally {
       close(os);
       close(is);
-      if (session != null) {
-        vfs._endVFSSession(session, null);
-      }
+      vfs._endVFSSession(session, null);
     }
   }
   
