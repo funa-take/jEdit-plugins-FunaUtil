@@ -2,10 +2,10 @@ package funa.util;
 
 import java.io.*;
 import java.nio.file.*;
-import org.gjt.sp.jedit.Buffer;
 import org.gjt.sp.jedit.MiscUtilities;
-import org.gjt.sp.jedit.io.VFSFile;
 import org.gjt.sp.jedit.io.VFS;
+import org.gjt.sp.jedit.io.VFSFile;
+import org.gjt.sp.jedit.io.VFSManager;
 
 public class IOUtil {
   
@@ -16,14 +16,13 @@ public class IOUtil {
     return temporaryDir;
   }
   
-  public static VFSFile searchFile(Buffer buffer, String fileName) throws Exception {
-    VFS vfs = buffer.getVFS();
-    Object session = vfs.createVFSSession(buffer.getPath(), null);
+  public static VFSFile searchFile(String path, String fileName) throws Exception {
+    VFS vfs = VFSManager.getVFSForPath(path);
+    Object session = vfs.createVFSSession(path, null);
     if (session == null) throw new IOException("Fail createVFSSession");
     
     try {
-      String parent = MiscUtilities.getParentOfPath(buffer.getPath());
-      return _searchFile(vfs, session, parent, fileName);
+      return _searchFile(vfs, session, path, fileName);
     } finally {
       vfs._endVFSSession(session, null);
     }
@@ -46,12 +45,12 @@ public class IOUtil {
     return _searchFile(vfs, session, parent, fileName);
   }
   
-  public static File copyToDir(Buffer buffer, VFSFile fromFile, File dir) throws Exception {
+  public static File copyToDir(VFSFile fromFile, File dir) throws Exception {
     InputStream is = null;
     OutputStream os = null;
     
-    VFS vfs = buffer.getVFS();
-    Object session = vfs.createVFSSession(buffer.getPath(), null);
+    VFS vfs = fromFile.getVFS();
+    Object session = vfs.createVFSSession(fromFile.getPath(), null);
     if (session == null) throw new IOException("Fail createVFSSession");
     
     try {
