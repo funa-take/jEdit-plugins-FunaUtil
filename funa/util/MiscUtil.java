@@ -5,18 +5,27 @@ import java.io.*;
 import org.gjt.sp.jedit.textarea.Selection;
 import org.gjt.sp.jedit.textarea.TextArea;
 import org.gjt.sp.jedit.Buffer;
+import org.gjt.sp.jedit.io.VFS;
+import org.gjt.sp.jedit.io.VFSFile;
+import org.gjt.sp.jedit.io.FileVFS;
+import org.gjt.sp.jedit.MiscUtilities;
 
 public class MiscUtil {
-  public static String exec(ArrayList<String> command, String processInput) {
+  public static String exec(ArrayList<String> command, String processInput) throws IOException {
     String encoding = System.getProperty("file.encoding");
-    return exec(command, processInput, null, encoding, encoding);
+    return exec(command, processInput, null, null, encoding, encoding);
   }
   
-  public static String exec(ArrayList<String> command, String processInput, String encoding) {
-    return exec(command, processInput, null, encoding, encoding);
+  public static String exec(ArrayList<String> command, String processInput, File workDir) throws IOException {
+    String encoding = System.getProperty("file.encoding");
+    return exec(command, processInput, null, workDir, encoding, encoding);
   }
   
-  public static String exec(ArrayList<String> command, String processInput, ArrayList<String> envp, String outEncoding, String inEncoding) {
+  public static String exec(ArrayList<String> command, String processInput, String encoding) throws IOException {
+    return exec(command, processInput, null, null, encoding, encoding);
+  }
+  
+  public static String exec(ArrayList<String> command, String processInput, ArrayList<String> envp, File workDir, String outEncoding, String inEncoding) throws IOException {
     String lineSep = "\n";
     BufferedReader pbr = null;
     BufferedReader pbe = null;
@@ -34,7 +43,7 @@ public class MiscUtil {
       }
       
       Runtime runtime = Runtime.getRuntime();
-      Process p = runtime.exec(commandArray, envpArray);
+      Process p = runtime.exec(commandArray, envpArray, workDir);
       
       pbw = new BufferedWriter(new OutputStreamWriter(p.getOutputStream(), outEncoding));
       pbr = new BufferedReader(new InputStreamReader(p.getInputStream(), inEncoding));
@@ -56,8 +65,6 @@ public class MiscUtil {
       }
       pbr.close();
       
-    } catch (Exception e){
-      e.printStackTrace();
     } finally {
       IOUtil.close(pbr);
       IOUtil.close(pbe);
@@ -69,14 +76,23 @@ public class MiscUtil {
   
   public static boolean format(TextArea textArea, ArrayList<String> command) {
     String encoding = System.getProperty("file.encoding");
-    return format(textArea, command, null, encoding, encoding);
+    return format(textArea, command, null, null, encoding, encoding);
+  }
+  
+  public static boolean format(TextArea textArea, ArrayList<String> command, File workDir) {
+    String encoding = System.getProperty("file.encoding");
+    return format(textArea, command, null, workDir, encoding, encoding);
   }
   
   public static boolean format(TextArea textArea, ArrayList<String> command, String encoding) {
-    return format(textArea, command, null, encoding, encoding);
+    return format(textArea, command, null, null, encoding, encoding);
   }
   
-  public static boolean format(TextArea textArea, ArrayList<String> command, ArrayList<String> envp, String outEncoding, String inEncoding) {
+  public static boolean format(TextArea textArea, ArrayList<String> command, ArrayList<String> envp, File workDir, String outEncoding, String inEncoding) {
+    return format(textArea, command, envp, workDir, outEncoding, inEncoding, null);
+  }
+  
+  public static boolean format(TextArea textArea, ArrayList<String> command, ArrayList<String> envp, File workDir, String outEncoding, String inEncoding, String configFileName) {
     Selection[] sel = textArea.getSelection();
     int startIndex = 0;
     int endIndex = textArea.getText().length();
@@ -84,11 +100,18 @@ public class MiscUtil {
       startIndex = sel[0].getStart();
       endIndex = sel[0].getEnd();
     }
-    
-    textArea.selectNone();
     try {
+      textArea.selectNone();
       String source = textArea.getText().substring(startIndex, endIndex);
-      String result = exec(command, source, envp, outEncoding, inEncoding);
+      String result = "";
+      
+      if (configFileName == null) {
+        result = exec(command, source, envp, workDir, outEncoding, inEncoding);
+      } else {
+        Buffer buffer = (Buffer)textArea.getBuffer();
+        result = execWithConfig(buffer, command, source, envp, configFileName, outEncoding, inEncoding);
+      }
+      
       if (!result.equals("")){
         int caretPos = textArea.getCaretPosition();
         int caretLine = textArea.getCaretLine();
@@ -119,4 +142,41 @@ public class MiscUtil {
     return true;
   }
   
-}
+  public static boolean formatWithConfig(TextArea textArea, ArrayList<String> command, String configFileName) {
+    String encoding = System.getProperty("file.encoding");
+    return format(textArea, command, null, null, encoding, encoding, configFileName);
+  }
+  
+  public static String execWithConfig(Buffer buffer, ArrayList<String> command, String processInput, ArrayList<String> envp, String configFileName, String outEncoding, String inEncoding) throws Exception {
+    Object session = null;
+    File tempDir = null;
+    VFS vfs = buffer.getVFS();
+    
+    try {
+      File workDir = null;
+      session = vfs.createVFSSession(buffer.getPath(), null);
+      if (session == null) throw new IOException("Fail createVFSSession");
+      
+      VFSFile vfsFile = vfs._getFile(session, buffer.getPath(), null);
+      if (vfsFile == null || !vfsFile.isReadable()) throw new IOException(buffer.getPath() + "can not read");
+      
+      if (vfsFile.getClass().equals(FileVFS.LocalFile.class)) {
+        workDir = new File(buffer.getPath()).getParentFile();
+      } else {
+        VFSFile vfsConfigFile = IOUtil.searchFile(MiscUtilities.getParentOfPath(buffer.getPath()), configFileName);
+        if (vfsConfigFile != null) {
+          tempDir = IOUtil.createTemporaryDirectory();
+          File configFile = IOUtil.copyToDir(vfsConfigFile, tempDir);
+          configFile.deleteOnExit();
+          workDir = tempDir;
+        }
+      }
+      
+      System.out.println("Working Directory : " + workDir);
+      return exec(command, processInput, envp, workDir, outEncoding, inEncoding);
+    } finally {
+      IOUtil.deleteDirectory(tempDir);
+      if (session != null) vfs._endVFSSession(session, null);
+    }
+  }
+} 
