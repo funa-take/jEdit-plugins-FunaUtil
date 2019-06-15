@@ -63,7 +63,7 @@ public class MiscUtil {
       while ( (line = pbe.readLine()) != null){
         System.err.println(line);
       }
-      pbr.close();
+      pbe.close();
       
     } finally {
       IOUtil.close(pbr);
