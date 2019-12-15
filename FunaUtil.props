@@ -1,0 +1,5 @@
+plugin.funa.util.FunaUtilPlugin.name=FunaUtil
+plugin.funa.util.FunaUtilPlugin.author=Funa
+plugin.funa.util.FunaUtilPlugin.activate=defer
+plugin.funa.util.FunaUtilPlugin.version=1.0
+plugin.funa.util.FunaUtilPlugin.description=Library for Funa
