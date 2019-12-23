@@ -323,4 +323,34 @@ public class MiscUtilForSsh {
     
     return true;
   }
+  
+  private static String sftp = "sftp://";
+  public static boolean isSftpPath(String path) {
+    return path.startsWith(sftp);
+  }
+  
+  public static class SftpInfo {
+    private String hostInfo = "";
+    private String path = "";
+    
+    public SftpInfo(String path) {
+      if (!MiscUtilForSsh.isSftpPath(path)) {
+        return;
+      }
+      int index = path.indexOf("/", sftp.length());
+      if (index < 0) {
+        return;
+      }
+      
+      hostInfo = path.substring(sftp.length(), index);
+      this.path = path.substring(index);
+    }
+    
+    public String getHostInfo() {
+      return this.hostInfo;
+    }
+    public String getPath() {
+      return this.path;
+    }
+  }
 } 
