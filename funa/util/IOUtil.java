@@ -2,6 +2,7 @@ package funa.util;
 
 import java.io.*;
 import java.nio.file.*;
+import org.gjt.sp.jedit.Buffer;
 import org.gjt.sp.jedit.MiscUtilities;
 import org.gjt.sp.jedit.io.VFS;
 import org.gjt.sp.jedit.io.VFSFile;
@@ -14,6 +15,95 @@ public class IOUtil {
     temporaryDir.deleteOnExit();
     
     return temporaryDir;
+  }
+  
+  public static VFSFile createFile(String path) throws Exception {
+    VFS vfs = VFSManager.getVFSForPath(path);
+    Object session = vfs.createVFSSession(path, null);
+    
+    try {
+      VFSFile file = vfs._getFile(session, path, null);
+      // ファイルが存在する場合は処理中止
+      if (file != null) return null;
+      
+      // ファイル生成
+      vfs._createOutputStream(session, path, null).close();
+      return vfs._getFile(session, path, null);
+      
+    } finally {
+      vfs._endVFSSession(session, null);
+    }
+  }
+  
+  public static OutputStream createOutputStream(String path) throws Exception {
+    VFS vfs = VFSManager.getVFSForPath(path);
+    Object session = vfs.createVFSSession(path, null);
+    
+    try {
+      VFSFile file = vfs._getFile(session, path, null);
+      // ファイルが存在する場合は処理中止
+      if (file != null) return null;
+      
+      return vfs._createOutputStream(session, path, null);
+      
+    } finally {
+      vfs._endVFSSession(session, null);
+    }
+  }
+  
+  public static InputStream createInputStream(String path) throws Exception {
+    VFS vfs = VFSManager.getVFSForPath(path);
+    Object session = vfs.createVFSSession(path, null);
+    
+    try {
+      VFSFile file = vfs._getFile(session, path, null);
+      // ファイルが存在しない場合は処理中止
+      if (file == null) return null;
+      
+      return vfs._createInputStream(session, path, true, null);
+      
+    } finally {
+      vfs._endVFSSession(session, null);
+    }
+  }
+  
+  public static String readFile(String path, String encoding) throws Exception {
+    InputStream is = null;
+    StringBuilder sb = new StringBuilder();
+    try {
+      is = createInputStream(path);
+      if (is == null) return "";
+      
+      BufferedReader br = new BufferedReader(new InputStreamReader(is, encoding));
+      String line = null;
+      while( (line = br.readLine()) != null) {
+        sb.append(line).append("\n");
+      }
+      
+      return  sb.toString();
+    } finally {
+      close(is);
+    }
+  }
+  
+  public static String createCopy(Buffer buffer, String prefix) throws Exception {
+    String path = buffer.getPath();
+    String filepath = MiscUtilities.constructPath(MiscUtilities.getParentOfPath(path), prefix + buffer.getName());
+    String encoding = buffer.getStringProperty(Buffer.ENCODING);
+    OutputStream os = null;
+    try {
+      os = createOutputStream(filepath);
+      if (os == null) {
+        return null;
+      }
+      PrintWriter pw = new PrintWriter(new OutputStreamWriter(new BufferedOutputStream(os), encoding));
+      pw.print(buffer.getText());
+      pw.flush();
+      return filepath;
+      
+    } finally {
+      funa.util.IOUtil.close(os);
+    }
   }
   
   public static VFSFile searchFile(String path, String fileName) throws Exception {
@@ -92,6 +182,21 @@ public class IOUtil {
         file.delete();
       }
     } catch (Exception e) {
+    }
+  }
+  
+  public static boolean delete(String path) {
+    VFS vfs = VFSManager.getVFSForPath(path);
+    Object session = vfs.createVFSSession(path, null);
+    
+    try {
+      return vfs._delete(session, path, null);
+    } catch (IOException e) {
+      return false;
+    } finally {
+      try {
+        vfs._endVFSSession(session, null);
+      } catch (Exception e){}
     }
   }
   

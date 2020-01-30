@@ -142,6 +142,43 @@ public class MiscUtil {
     return true;
   }
   
+  public static boolean format(TextArea textArea, String result) {
+    int startIndex = 0;
+    int endIndex = textArea.getText().length();
+    
+    try {
+      textArea.selectNone();
+      
+      if (!result.equals("")){
+        int caretPos = textArea.getCaretPosition();
+        int caretLine = textArea.getCaretLine();
+        int endPos = textArea.getLineEndOffset(caretLine);
+        
+        Buffer buffer = (Buffer)textArea.getBuffer();
+        MarkerManager mm = new MarkerManager();
+        mm.save(buffer);
+        
+        buffer.remove(startIndex, endIndex - startIndex);
+        buffer.insert(startIndex, result);
+        
+        buffer.removeAllMarkers();
+        mm.restore(buffer);
+        
+        if (caretLine < textArea.getLineCount()) {
+          int newPos = textArea.getLineEndOffset(caretLine) - (endPos - caretPos);
+          if (newPos > 0 && newPos < textArea.getText().length()){
+            textArea.setCaretPosition(newPos);
+          }
+        }
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      return false;
+    }
+    
+    return true;
+  }
+  
   public static boolean formatWithConfig(TextArea textArea, List<String> command, String configFileName) {
     String encoding = System.getProperty("file.encoding");
     return format(textArea, command, null, null, encoding, encoding, configFileName);
