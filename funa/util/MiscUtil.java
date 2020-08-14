@@ -11,27 +11,24 @@ import org.gjt.sp.jedit.io.FileVFS;
 import org.gjt.sp.jedit.MiscUtilities;
 
 public class MiscUtil {
-  public static ExecResult exec(List<String> command, String processInput) throws IOException {
+  public static ExecResult exec(List<String> command, String processInput) throws Exception {
     String encoding = System.getProperty("file.encoding");
     return exec(command, processInput, null, null, encoding, encoding);
   }
   
-  public static ExecResult exec(List<String> command, String processInput, File workDir) throws IOException {
+  public static ExecResult exec(List<String> command, String processInput, File workDir) throws Exception {
     String encoding = System.getProperty("file.encoding");
     return exec(command, processInput, null, workDir, encoding, encoding);
   }
   
-  public static ExecResult exec(List<String> command, String processInput, String encoding) throws IOException {
+  public static ExecResult exec(List<String> command, String processInput, String encoding) throws Exception {
     return exec(command, processInput, null, null, encoding, encoding);
   }
   
-  public static ExecResult exec(List<String> command, String processInput, List<String> envp, File workDir, String outEncoding, String inEncoding) throws IOException {
-    String lineSep = "\n";
+  public static ExecResult exec(List<String> command, String processInput, List<String> envp, File workDir, String outEncoding, String inEncoding) throws Exception {
     BufferedReader pbr = null;
     BufferedReader pbe = null;
     BufferedWriter pbw = null;
-    StringBuffer stdOut = new StringBuffer();
-    StringBuffer stdErr = new StringBuffer();
     
     try {
       String[] commandArray = new String[command.size()];
@@ -50,29 +47,25 @@ public class MiscUtil {
       pbr = new BufferedReader(new InputStreamReader(p.getInputStream(), inEncoding));
       pbe = new BufferedReader(new InputStreamReader(p.getErrorStream(), inEncoding));
       
+      ReadThread stdOut = new ReadThread(pbr);
+      stdOut.start();
+      ReadThread stdErr = new ReadThread(pbe);
+      stdErr.start();
+      
       pbw.write(processInput);
       pbw.flush();
       pbw.close();
       
-      String line = null;
-      while ( (line = pbr.readLine()) != null){
-        stdOut.append(line);
-        stdOut.append(lineSep);
-      }
-      pbr.close();
+      int exitStatus = p.waitFor();
+      stdOut.join();
+      stdErr.join();
       
-      while ( (line = pbe.readLine()) != null){
-        stdErr.append(line);
-        stdErr.append(lineSep);
-      }
-      pbe.close();
+      return new ExecResult(stdOut.getReadedString(), stdErr.getReadedString(), exitStatus);
     } finally {
       IOUtil.close(pbr);
       IOUtil.close(pbe);
       IOUtil.close(pbw);
     }
-    
-    return new ExecResult(stdOut.toString(), stdErr.toString());
   }
   
   public static ExecResult format(TextArea textArea, List<String> command) throws Exception {
@@ -179,6 +172,32 @@ public class MiscUtil {
     } finally {
       IOUtil.deleteDirectory(tempDir);
       if (session != null) vfs._endVFSSession(session, null);
+    }
+  }
+  
+  protected static class ReadThread extends Thread {
+    protected BufferedReader reader = null;
+    protected StringBuilder out = new StringBuilder();
+    protected static String lineSep = "\n";
+    
+    protected ReadThread(BufferedReader reader) {
+      this.reader = reader;
+    }
+    
+    public void run() {
+      String line = null;
+      try {
+        while ( (line = reader.readLine()) != null){
+          out.append(line);
+          out.append(lineSep);
+        }
+      } catch (Exception e){
+        e.printStackTrace();
+      }
+    }
+    
+    public String getReadedString() {
+      return out.toString();
     }
   }
 } 

@@ -23,6 +23,8 @@ import org.gjt.sp.util.Log;
 import ftp.*;
 import com.jcraft.jsch.*;
 
+import funa.util.MiscUtil.ReadThread;
+
 public class MiscUtilForSsh {
   
   public static class SshExecConnection implements UserInfo {
@@ -187,22 +189,20 @@ public class MiscUtilForSsh {
     }
   }
   
-  public static ExecResult exec(String host, List<String> commands, String processInput) throws IOException, JSchException {
+  public static ExecResult exec(String host, List<String> commands, String processInput) throws Exception {
     String encoding = System.getProperty("file.encoding");
     return exec(host, commands, processInput, null, encoding, encoding);
   }
   
-  public static ExecResult exec(String host, List<String> commands, String processInput, String encoding) throws IOException, JSchException {
+  public static ExecResult exec(String host, List<String> commands, String processInput, String encoding) throws Exception {
     return exec(host, commands, processInput, null, encoding, encoding);
   }
   
-  public static ExecResult exec(String host, List<String> commands, String processInput, Map<String, String> envp, String outEncoding, String inEncoding) throws IOException, JSchException {
+  public static ExecResult exec(String host, List<String> commands, String processInput, Map<String, String> envp, String outEncoding, String inEncoding) throws Exception {
     String lineSep = "\n";
     BufferedReader pbr = null;
     BufferedReader pbe = null;
     BufferedWriter pbw = null;
-    StringBuffer stdOut = new StringBuffer();
-    StringBuffer stdErr = new StringBuffer();
     ChannelExec channel = null;
     Session session = null;
     
@@ -241,22 +241,19 @@ public class MiscUtilForSsh {
       channel.connect();
       channel.setAgentForwarding(true);
       
+      ReadThread stdOut = new ReadThread(pbr);
+      stdOut.start();
+      ReadThread stdErr = new ReadThread(pbe);
+      stdErr.start();
+      
       pbw.write(processInput);
       pbw.flush();
       pbw.close();
       
-      String line = null;
-      while( (line = pbr.readLine()) != null) {
-        stdOut.append(line);
-        stdOut.append(lineSep);
-      }
-      pbr.close();
+      stdOut.join();
+      stdErr.join();
       
-      while( (line = pbe.readLine()) != null) {
-        stdErr.append(line);
-        stdErr.append(lineSep);
-      }
-      pbe.close();
+      return new ExecResult(stdOut.getReadedString(), stdErr.getReadedString(), channel.getExitStatus());
     } finally {
       IOUtil.close(pbr);
       IOUtil.close(pbe);
@@ -268,19 +265,18 @@ public class MiscUtilForSsh {
         channel.disconnect();
       }
     }
-    return new ExecResult(stdOut.toString(), stdErr.toString());
   }
   
-  public static ExecResult format(String host, TextArea textArea, List<String> command) throws IOException, JSchException {
+  public static ExecResult format(String host, TextArea textArea, List<String> command) throws Exception {
     String encoding = System.getProperty("file.encoding");
     return format(host, textArea, command, null, encoding, encoding);
   }
   
-  public static ExecResult format(String host, TextArea textArea, List<String> command, String encoding) throws IOException, JSchException {
+  public static ExecResult format(String host, TextArea textArea, List<String> command, String encoding) throws Exception {
     return format(host, textArea, command, null, encoding, encoding);
   }
   
-  public static ExecResult format(String host, TextArea textArea, List<String> command, Map<String, String> envp, String outEncoding, String inEncoding) throws IOException, JSchException {
+  public static ExecResult format(String host, TextArea textArea, List<String> command, Map<String, String> envp, String outEncoding, String inEncoding) throws Exception {
     
     Selection[] sel = textArea.getSelection();
     int startIndex = 0;
