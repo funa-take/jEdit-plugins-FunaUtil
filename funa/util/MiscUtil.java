@@ -11,26 +11,27 @@ import org.gjt.sp.jedit.io.FileVFS;
 import org.gjt.sp.jedit.MiscUtilities;
 
 public class MiscUtil {
-  public static String exec(List<String> command, String processInput) throws IOException {
+  public static ExecResult exec(List<String> command, String processInput) throws IOException {
     String encoding = System.getProperty("file.encoding");
     return exec(command, processInput, null, null, encoding, encoding);
   }
   
-  public static String exec(List<String> command, String processInput, File workDir) throws IOException {
+  public static ExecResult exec(List<String> command, String processInput, File workDir) throws IOException {
     String encoding = System.getProperty("file.encoding");
     return exec(command, processInput, null, workDir, encoding, encoding);
   }
   
-  public static String exec(List<String> command, String processInput, String encoding) throws IOException {
+  public static ExecResult exec(List<String> command, String processInput, String encoding) throws IOException {
     return exec(command, processInput, null, null, encoding, encoding);
   }
   
-  public static String exec(List<String> command, String processInput, List<String> envp, File workDir, String outEncoding, String inEncoding) throws IOException {
+  public static ExecResult exec(List<String> command, String processInput, List<String> envp, File workDir, String outEncoding, String inEncoding) throws IOException {
     String lineSep = "\n";
     BufferedReader pbr = null;
     BufferedReader pbe = null;
     BufferedWriter pbw = null;
-    StringBuffer result = new StringBuffer();
+    StringBuffer stdOut = new StringBuffer();
+    StringBuffer stdErr = new StringBuffer();
     
     try {
       String[] commandArray = new String[command.size()];
@@ -55,44 +56,44 @@ public class MiscUtil {
       
       String line = null;
       while ( (line = pbr.readLine()) != null){
-        result.append(line);
-        result.append(lineSep);
+        stdOut.append(line);
+        stdOut.append(lineSep);
       }
       pbr.close();
       
       while ( (line = pbe.readLine()) != null){
-        System.err.println(line);
+        stdErr.append(line);
+        stdErr.append(lineSep);
       }
       pbe.close();
-      
     } finally {
       IOUtil.close(pbr);
       IOUtil.close(pbe);
       IOUtil.close(pbw);
     }
     
-    return result.toString();
+    return new ExecResult(stdOut.toString(), stdErr.toString());
   }
   
-  public static boolean format(TextArea textArea, List<String> command) {
+  public static ExecResult format(TextArea textArea, List<String> command) throws Exception {
     String encoding = System.getProperty("file.encoding");
     return format(textArea, command, null, null, encoding, encoding);
   }
   
-  public static boolean format(TextArea textArea, List<String> command, File workDir) {
+  public static ExecResult format(TextArea textArea, List<String> command, File workDir) throws Exception {
     String encoding = System.getProperty("file.encoding");
     return format(textArea, command, null, workDir, encoding, encoding);
   }
   
-  public static boolean format(TextArea textArea, List<String> command, String encoding) {
+  public static ExecResult format(TextArea textArea, List<String> command, String encoding) throws Exception {
     return format(textArea, command, null, null, encoding, encoding);
   }
   
-  public static boolean format(TextArea textArea, List<String> command, List<String> envp, File workDir, String outEncoding, String inEncoding) {
+  public static ExecResult format(TextArea textArea, List<String> command, List<String> envp, File workDir, String outEncoding, String inEncoding) throws Exception {
     return format(textArea, command, envp, workDir, outEncoding, inEncoding, null);
   }
   
-  public static boolean format(TextArea textArea, List<String> command, List<String> envp, File workDir, String outEncoding, String inEncoding, String configFileName) {
+  public static ExecResult format(TextArea textArea, List<String> command, List<String> envp, File workDir, String outEncoding, String inEncoding, String configFileName) throws Exception {
     Selection[] sel = textArea.getSelection();
     int startIndex = 0;
     int endIndex = textArea.getText().length();
@@ -100,91 +101,59 @@ public class MiscUtil {
       startIndex = sel[0].getStart();
       endIndex = sel[0].getEnd();
     }
-    try {
-      textArea.selectNone();
-      String source = textArea.getText().substring(startIndex, endIndex);
-      String result = "";
-      
-      if (configFileName == null) {
-        result = exec(command, source, envp, workDir, outEncoding, inEncoding);
-      } else {
-        Buffer buffer = (Buffer)textArea.getBuffer();
-        result = execWithConfig(buffer, command, source, envp, configFileName, outEncoding, inEncoding);
-      }
-      
-      if (!result.equals("")){
-        int caretPos = textArea.getCaretPosition();
-        int caretLine = textArea.getCaretLine();
-        int endPos = textArea.getLineEndOffset(caretLine);
-        
-        Buffer buffer = (Buffer)textArea.getBuffer();
-        MarkerManager mm = new MarkerManager();
-        mm.save(buffer);
-        
-        buffer.remove(startIndex, endIndex - startIndex);
-        buffer.insert(startIndex, result);
-        
-        buffer.removeAllMarkers();
-        mm.restore(buffer);
-        
-        if (caretLine < textArea.getLineCount()) {
-          int newPos = textArea.getLineEndOffset(caretLine) - (endPos - caretPos);
-          if (newPos > 0 && newPos < textArea.getText().length()){
-            textArea.setCaretPosition(newPos);
-          }
-        }
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-      return false;
+    
+    String source = textArea.getText().substring(startIndex, endIndex);
+    ExecResult execResult = null;
+    
+    if (configFileName == null) {
+      execResult = exec(command, source, envp, workDir, outEncoding, inEncoding);
+    } else {
+      Buffer buffer = (Buffer)textArea.getBuffer();
+      execResult = execWithConfig(buffer, command, source, envp, configFileName, outEncoding, inEncoding);
     }
     
-    return true;
+    format(textArea, execResult.getStdOut(), startIndex, endIndex);
+    
+    return execResult;
   }
   
-  public static boolean format(TextArea textArea, String result) {
-    int startIndex = 0;
-    int endIndex = textArea.getText().length();
+  
+  public static void format(TextArea textArea, String result) {
+    format(textArea, result, 0, textArea.getText().length());
+  }
+  public static void format(TextArea textArea, String result, int startIndex, int endIndex) {
+    textArea.selectNone();
     
-    try {
-      textArea.selectNone();
+    if (!result.equals("")){
+      int caretPos = textArea.getCaretPosition();
+      int caretLine = textArea.getCaretLine();
+      int endPos = textArea.getLineEndOffset(caretLine);
       
-      if (!result.equals("")){
-        int caretPos = textArea.getCaretPosition();
-        int caretLine = textArea.getCaretLine();
-        int endPos = textArea.getLineEndOffset(caretLine);
-        
-        Buffer buffer = (Buffer)textArea.getBuffer();
-        MarkerManager mm = new MarkerManager();
-        mm.save(buffer);
-        
-        buffer.remove(startIndex, endIndex - startIndex);
-        buffer.insert(startIndex, result);
-        
-        buffer.removeAllMarkers();
-        mm.restore(buffer);
-        
-        if (caretLine < textArea.getLineCount()) {
-          int newPos = textArea.getLineEndOffset(caretLine) - (endPos - caretPos);
-          if (newPos > 0 && newPos < textArea.getText().length()){
-            textArea.setCaretPosition(newPos);
-          }
+      Buffer buffer = (Buffer)textArea.getBuffer();
+      MarkerManager mm = new MarkerManager();
+      mm.save(buffer);
+      
+      buffer.remove(startIndex, endIndex - startIndex);
+      buffer.insert(startIndex, result);
+      
+      buffer.removeAllMarkers();
+      mm.restore(buffer);
+      
+      if (caretLine < textArea.getLineCount()) {
+        int newPos = textArea.getLineEndOffset(caretLine) - (endPos - caretPos);
+        if (newPos > 0 && newPos < textArea.getText().length()){
+          textArea.setCaretPosition(newPos);
         }
       }
-    } catch (Exception e) {
-      e.printStackTrace();
-      return false;
     }
-    
-    return true;
   }
   
-  public static boolean formatWithConfig(TextArea textArea, List<String> command, String configFileName) {
+  public static ExecResult formatWithConfig(TextArea textArea, List<String> command, String configFileName) throws Exception {
     String encoding = System.getProperty("file.encoding");
     return format(textArea, command, null, null, encoding, encoding, configFileName);
   }
   
-  public static String execWithConfig(Buffer buffer, List<String> command, String processInput, List<String> envp, String configFileName, String outEncoding, String inEncoding) throws Exception {
+  public static ExecResult execWithConfig(Buffer buffer, List<String> command, String processInput, List<String> envp, String configFileName, String outEncoding, String inEncoding) throws Exception {
     Object session = null;
     File tempDir = null;
     VFS vfs = buffer.getVFS();

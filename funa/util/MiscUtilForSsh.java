@@ -187,21 +187,22 @@ public class MiscUtilForSsh {
     }
   }
   
-  public static String exec(String host, List<String> commands, String processInput) throws IOException, JSchException {
+  public static ExecResult exec(String host, List<String> commands, String processInput) throws IOException, JSchException {
     String encoding = System.getProperty("file.encoding");
     return exec(host, commands, processInput, null, encoding, encoding);
   }
   
-  public static String exec(String host, List<String> commands, String processInput, String encoding) throws IOException, JSchException {
+  public static ExecResult exec(String host, List<String> commands, String processInput, String encoding) throws IOException, JSchException {
     return exec(host, commands, processInput, null, encoding, encoding);
   }
   
-  public static String exec(String host, List<String> commands, String processInput, Map<String, String> envp, String outEncoding, String inEncoding) throws IOException, JSchException {
+  public static ExecResult exec(String host, List<String> commands, String processInput, Map<String, String> envp, String outEncoding, String inEncoding) throws IOException, JSchException {
     String lineSep = "\n";
     BufferedReader pbr = null;
     BufferedReader pbe = null;
     BufferedWriter pbw = null;
-    StringBuffer result = new StringBuffer();
+    StringBuffer stdOut = new StringBuffer();
+    StringBuffer stdErr = new StringBuffer();
     ChannelExec channel = null;
     Session session = null;
     
@@ -246,13 +247,14 @@ public class MiscUtilForSsh {
       
       String line = null;
       while( (line = pbr.readLine()) != null) {
-        result.append(line);
-        result.append(lineSep);
+        stdOut.append(line);
+        stdOut.append(lineSep);
       }
       pbr.close();
       
       while( (line = pbe.readLine()) != null) {
-        System.err.println(line);
+        stdErr.append(line);
+        stdErr.append(lineSep);
       }
       pbe.close();
     } finally {
@@ -266,19 +268,19 @@ public class MiscUtilForSsh {
         channel.disconnect();
       }
     }
-    return result.toString();
+    return new ExecResult(stdOut.toString(), stdErr.toString());
   }
   
-  public static boolean format(String host, TextArea textArea, List<String> command) {
+  public static ExecResult format(String host, TextArea textArea, List<String> command) throws IOException, JSchException {
     String encoding = System.getProperty("file.encoding");
     return format(host, textArea, command, null, encoding, encoding);
   }
   
-  public static boolean format(String host, TextArea textArea, List<String> command, String encoding) {
+  public static ExecResult format(String host, TextArea textArea, List<String> command, String encoding) throws IOException, JSchException {
     return format(host, textArea, command, null, encoding, encoding);
   }
   
-  public static boolean format(String host, TextArea textArea, List<String> command, Map<String, String> envp, String outEncoding, String inEncoding) {
+  public static ExecResult format(String host, TextArea textArea, List<String> command, Map<String, String> envp, String outEncoding, String inEncoding) throws IOException, JSchException {
     
     Selection[] sel = textArea.getSelection();
     int startIndex = 0;
@@ -287,41 +289,12 @@ public class MiscUtilForSsh {
       startIndex = sel[0].getStart();
       endIndex = sel[0].getEnd();
     }
-    try {
-      textArea.selectNone();
-      String source = textArea.getText().substring(startIndex, endIndex);
-      String result = "";
-      
-      result = exec(host, command, source, envp, outEncoding, inEncoding);
-      
-      if (!result.equals("")){
-        int caretPos = textArea.getCaretPosition();
-        int caretLine = textArea.getCaretLine();
-        int endPos = textArea.getLineEndOffset(caretLine);
-        
-        Buffer buffer = (Buffer)textArea.getBuffer();
-        MarkerManager mm = new MarkerManager();
-        mm.save(buffer);
-        
-        buffer.remove(startIndex, endIndex - startIndex);
-        buffer.insert(startIndex, result);
-        
-        buffer.removeAllMarkers();
-        mm.restore(buffer);
-        
-        if (caretLine < textArea.getLineCount()) {
-          int newPos = textArea.getLineEndOffset(caretLine) - (endPos - caretPos);
-          if (newPos > 0 && newPos < textArea.getText().length()){
-            textArea.setCaretPosition(newPos);
-          }
-        }
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-      return false;
-    }
     
-    return true;
+    String source = textArea.getText().substring(startIndex, endIndex);
+    ExecResult execResult = execResult = exec(host, command, source, envp, outEncoding, inEncoding);
+    
+    MiscUtil.format(textArea, execResult.getStdOut(), startIndex, endIndex);
+    return execResult;
   }
   
   private static String sftp = "sftp://";
