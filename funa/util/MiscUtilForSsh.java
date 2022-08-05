@@ -301,6 +301,7 @@ public class MiscUtilForSsh {
   public static class SftpInfo {
     private String hostInfo = "";
     private String path = "";
+    private String user = "";
     
     public SftpInfo(String path) {
       if (!MiscUtilForSsh.isSftpPath(path)) {
@@ -312,6 +313,10 @@ public class MiscUtilForSsh {
       }
       
       hostInfo = path.substring(sftp.length(), index);
+      index = hostInfo.indexOf("@");
+      if (index >= 0) {
+        user = hostInfo.substring(0, hostInfo.indexOf("@"));
+      }
       this.path = path.substring(index);
     }
     
@@ -320,6 +325,10 @@ public class MiscUtilForSsh {
     }
     public String getPath() {
       return this.path;
+    }
+    
+    public String getUser() {
+      return this.user;
     }
   }
 } 
