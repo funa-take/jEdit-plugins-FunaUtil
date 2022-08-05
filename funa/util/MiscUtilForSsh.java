@@ -311,13 +311,13 @@ public class MiscUtilForSsh {
       if (index < 0) {
         return;
       }
-      
       hostInfo = path.substring(sftp.length(), index);
+      this.path = path.substring(index);
+      
       index = hostInfo.indexOf("@");
       if (index >= 0) {
         user = hostInfo.substring(0, hostInfo.indexOf("@"));
       }
-      this.path = path.substring(index);
     }
     
     public String getHostInfo() {
