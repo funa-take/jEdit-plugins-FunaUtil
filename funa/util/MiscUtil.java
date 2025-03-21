@@ -125,11 +125,11 @@ public class MiscUtil {
       Buffer buffer = (Buffer)textArea.getBuffer();
       MarkerManager mm = new MarkerManager();
       mm.save(buffer);
+      buffer.removeAllMarkers();
       
       buffer.remove(startIndex, endIndex - startIndex);
       buffer.insert(startIndex, result);
       
-      buffer.removeAllMarkers();
       mm.restore(buffer);
       
       if (caretLine < textArea.getLineCount()) {
