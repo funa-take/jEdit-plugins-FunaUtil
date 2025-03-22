@@ -7,11 +7,12 @@ import org.gjt.sp.jedit.Marker;
 
 public class MarkerManager {
   static private class Data {
-    char shortcut;
-    int position;
-    int line;
-    int offsetFromEndOfLine;
-    Buffer buffer;
+    private final char shortcut;
+    private final int position;
+    private final int line;
+    private final int offsetFromEndOfLine;
+    private final Buffer buffer;
+    
     private Data(Marker marker, Buffer buffer) {
       this.shortcut = marker.getShortcut();
       this.position = marker.getPosition();
@@ -34,7 +35,12 @@ public class MarkerManager {
   }
   private ArrayList<Data> markers = new ArrayList<Data>();
   
-  public void save(Buffer buffer) {
+  private final Buffer buffer;
+  public MarkerManager(Buffer buffer) {
+    this.buffer = buffer;
+  }
+  
+  public void save() {
     markers.clear();
     Vector<Marker> bufferMarkers = buffer.getMarkers();
     for(Marker marker: bufferMarkers) {
@@ -42,7 +48,7 @@ public class MarkerManager {
     }
   }
   
-  public void restore(Buffer buffer) {
+  public void restore() {
     for(Data data: markers) {
       // int position = data.position <= buffer.getLength() ? data.position : buffer.getLength();
       buffer.addMarker(data.shortcut, data.getPosition());

@@ -155,14 +155,14 @@ public class MiscUtil {
       int endPos = textArea.getLineEndOffset(caretLine);
       
       Buffer buffer = (Buffer)textArea.getBuffer();
-      MarkerManager mm = new MarkerManager();
-      mm.save(buffer);
-      buffer.removeAllMarkers();
+      // MarkerManager mm = new MarkerManager(buffer);
+      // mm.save();
+      // buffer.removeAllMarkers();
       
       buffer.remove(startIndex, endIndex - startIndex);
       buffer.insert(startIndex, result);
       
-      mm.restore(buffer);
+      // mm.restore();
       
       if (caretLine < textArea.getLineCount()) {
         int newPos = textArea.getLineEndOffset(caretLine) - (endPos - caretPos);
