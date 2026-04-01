@@ -190,7 +190,8 @@ public class MiscUtilForSsh {
   }
   
   public static ExecResult exec(String host, List<String> commands, String processInput) throws Exception {
-    String encoding = System.getProperty("file.encoding");
+    String encoding = getDefaultEncoding();
+    
     return exec(host, commands, processInput, null, encoding, encoding);
   }
   
@@ -268,7 +269,7 @@ public class MiscUtilForSsh {
   }
   
   public static ExecResult format(String host, TextArea textArea, List<String> command) throws Exception {
-    String encoding = System.getProperty("file.encoding");
+    String encoding = getDefaultEncoding();
     return format(host, textArea, command, null, encoding, encoding);
   }
   
@@ -330,5 +331,10 @@ public class MiscUtilForSsh {
     public String getUser() {
       return this.user;
     }
+  }
+  
+  public static String getDefaultEncoding() {
+    // SSHのリモート先はほとんどUTF-8なので、デフォルトはUTF-8にする
+    return "UTF-8";
   }
 } 

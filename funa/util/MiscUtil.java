@@ -17,13 +17,13 @@ import org.gjt.sp.jedit.textarea.TextArea;
 
 public class MiscUtil {
   public static ExecResult exec(List<String> command, String processInput) throws Exception {
-    String encoding = System.getProperty("file.encoding");
+    String encoding = getDefaultEncoding();
     return exec(command, processInput, null, null, encoding, encoding);
   }
   
   public static ExecResult exec(List<String> command, String processInput, File workDir)
       throws Exception {
-    String encoding = System.getProperty("file.encoding");
+    String encoding = getDefaultEncoding();
     return exec(command, processInput, null, workDir, encoding, encoding);
   }
   
@@ -83,13 +83,13 @@ public class MiscUtil {
   }
   
   public static ExecResult format(TextArea textArea, List<String> command) throws Exception {
-    String encoding = System.getProperty("file.encoding");
+    String encoding = getDefaultEncoding();
     return format(textArea, command, null, null, encoding, encoding);
   }
   
   public static ExecResult format(TextArea textArea, List<String> command, File workDir)
       throws Exception {
-    String encoding = System.getProperty("file.encoding");
+    String encoding = getDefaultEncoding();
     return format(textArea, command, null, workDir, encoding, encoding);
   }
   
@@ -175,7 +175,7 @@ public class MiscUtil {
   
   public static ExecResult formatWithConfig(
       TextArea textArea, List<String> command, String configFileName) throws Exception {
-    String encoding = System.getProperty("file.encoding");
+    String encoding = getDefaultEncoding();
     return format(textArea, command, null, null, encoding, encoding, configFileName);
   }
   
@@ -280,5 +280,17 @@ public class MiscUtil {
 
       ep.getTextArea().setCaretPosition(newPos);
     }
+  }
+  
+  public static String getDefaultEncoding() {
+    // WindowsのJDK25では file.encodingがUTF-8に変更された。
+    // OSのエンコードが native.encodingに設定されている。
+    
+    String encoding = System.getProperty("native.encoding");
+    if (encoding == null) {
+      encoding = System.getProperty("file.encoding");
+    }
+    
+    return encoding;
   }
 } 
